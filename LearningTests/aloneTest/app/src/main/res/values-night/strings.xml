@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Test 1</string>
+    <string name="secondo_text">Secondo</string>
+    <string name="primo_text">Primo</string>
+</resources>
