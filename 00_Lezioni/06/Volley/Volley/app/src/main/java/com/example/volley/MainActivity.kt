@@ -3,6 +3,7 @@ package com.example.volley
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.net.ConnectivityManager.NetworkCallback
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Bundle
@@ -26,30 +27,35 @@ import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var connectivityManager : ConnectivityManager
+    private var showConnectivitySnackBar = mutableStateOf(false)
+    private val place = mutableStateOf("")
+
+    // richieste per connessione a internet
+    private lateinit var connectivityManager: ConnectivityManager
     private var queue: RequestQueue? = null
     private val TAG = "OSM_REQUEST"
 
     private var requestingData = false
 
-    private var showConnectivitySnackBar = mutableStateOf(false)
-    private val place = mutableStateOf("")
-
-    private lateinit var networkCallback: ConnectivityManager.NetworkCallback
+    // ha sempre a che fare con la activity creata quindi verrà inizializzata poi
+    private lateinit var networkCallback: NetworkCallback
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // per poter procedere ci serve che l'activity sia creata
         connectivityManager =
             applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
+        // si sfrutta un sigleton
+        networkCallback = object : NetworkCallback() {
             override fun onAvailable(network: Network) {
                 if (requestingData) {
                     sendRequest()
-                    showConnectivitySnackBar.value = false
                 }
+
+                showConnectivitySnackBar.value = false
             }
 
             override fun onLost(network: Network) {
@@ -117,8 +123,12 @@ class MainActivity : ComponentActivity() {
             "https://nominatim.openstreetmap.org/?addressdetails=1&q=campus+universit%C3%A0+cesena&format=json&limit=1"
         queue = Volley.newRequestQueue(this)
 
-        val jsonArrayRequest = JsonArrayRequest(
+        // si effettua una richiesta tramite JSON per poi ottenere indietro un oggetto JSON con la
+        // risposta ottenuta, la quale dovrà essere analizzata e scorporata
+        val request = JsonArrayRequest(
             Request.Method.GET, url, null,
+            // fatta la richista, si ottiene un oggetto da analizzare tramite listener: da un oggetto
+            // recupero una specifica stringa
             { response ->
                 val first: JSONObject = response.get(0) as JSONObject
                 place.value = first.get("display_name").toString()
@@ -130,28 +140,29 @@ class MainActivity : ComponentActivity() {
             }
         )
 
-        jsonArrayRequest.tag = TAG
-        queue?.add(jsonArrayRequest)
+        request.tag = TAG
+        // la queue potrebbe essere nulla
+        queue?.add(request)
     }
 
     override fun onStop() {
         super.onStop()
         queue?.cancelAll(TAG)
         if (requestingData)
-            (getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
-                .unregisterNetworkCallback(networkCallback)
+            connectivityManager.unregisterNetworkCallback(networkCallback)
     }
 
     override fun onStart() {
         super.onStart()
         if (requestingData)
-            (getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
-                .registerDefaultNetworkCallback(networkCallback)
+            connectivityManager.registerDefaultNetworkCallback(networkCallback)
     }
 
+    // controllo connettività
     private fun isOnline(): Boolean {
         val capabilities =
             connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+        // oltre a true e false potrebbe anche essere null
         if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true ||
             capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
         ) {
