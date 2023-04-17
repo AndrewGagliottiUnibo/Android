@@ -111,6 +111,8 @@ class MainActivity : ComponentActivity() {
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Button(onClick = {
+                                    // al click controllo la posizione - con gli opportuni casi
+                                    // introdotti sotto
                                     startLocationUpdates()
                                 }) {
                                     Text(text = "Get current location")
@@ -136,6 +138,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        // solo se ha richiesto update ..
         if (requestingLocationUpdates) startLocationUpdates()
     }
 
@@ -153,8 +156,7 @@ class MainActivity : ComponentActivity() {
                 this,
                 permission
             ) == PackageManager.PERMISSION_GRANTED -> {
-                val gpsEnabled = checkGPS()
-                if (gpsEnabled) {
+                if (checkGPS()) {
                     // allora se il GPS è on e ho i permessi posso controllare la posizione passando
                     // le necessarie variabili e richiamando il main
                     fusedLocationProviderClient.requestLocationUpdates(
@@ -188,10 +190,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkGPS(): Boolean {
+        // controlla una stringa per verificare o meno che il gps sia attivo
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        // ritorna vero o falso a seconda del fatto che il gps sia attivo o meno
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
     }
 
+    // per ottimizzare l'utilizzo della batteria devo controllare il ciclo di vita della app
     override fun onPause() {
         super.onPause()
         stopLocationUpdates()
